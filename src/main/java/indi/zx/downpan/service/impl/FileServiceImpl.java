@@ -1,21 +1,25 @@
 package indi.zx.downpan.service.impl;
 
+import indi.zx.downpan.common.constants.GlobalConstants;
 import indi.zx.downpan.entity.FileEntity;
 import indi.zx.downpan.repository.FileRepository;
 import indi.zx.downpan.service.FileService;
 import indi.zx.downpan.support.util.MessageUtil;
 import indi.zx.downpan.support.util.SecurityUtil;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.tika.Tika;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.activation.MimeType;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -27,6 +31,8 @@ import java.util.stream.Collectors;
 public class FileServiceImpl implements FileService {
 
     private final FileRepository fileRepository;
+
+    private final Tika tika = new Tika();
     @Autowired
     public FileServiceImpl(FileRepository fileRepository) {
         this.fileRepository = fileRepository;
@@ -34,26 +40,29 @@ public class FileServiceImpl implements FileService {
 
     @Override
     public void upload(MultipartFile[] files, String parent) {
-        String username = SecurityUtil.getCurrentUsernameFromContext();
+        String username = SecurityUtil.getCurrentUsername();
         List<FileEntity> fileEntitys = new LinkedList<>();
-
         for (MultipartFile file : files) {
             FileEntity fileEntity = new FileEntity();
             try {
+                fileEntity.setRealType(getType(file.getInputStream()));
                 fileEntity.setMD5(DigestUtils.md5Hex(file.getInputStream()));
-            } catch (IOException e) {
+            } catch (Exception e) {
                 continue;
             }
-            FileEntity entity = fileRepository.findFileEntityByMD5();
-            if (entity!= null){
-
+            FileEntity entity = fileRepository.findFileEntityByMD5(fileEntity.getMD5());
+            if (entity == null){
+                // 上传操作
             }
+            fileEntity.setSize(file.getSize());
             fileEntity.setFileName(file.getOriginalFilename());
             fileEntity.setIsDelete(false);
             fileEntity.setRealPath( username + "/" + fileEntity.getMD5());
             fileEntity.setVirtualPath(parent+ "/"+ file.getOriginalFilename());
             fileEntity.setIsDir(false);
+            fileEntity.setParent(parent.replace(".","/"));
             fileEntity.setCreateUser(username);
+            fileEntity.setUpdateUser(username);
             try {
 
                 file.transferTo(new File("D:\\work\\testFolder\\" + file.getOriginalFilename()));
@@ -65,6 +74,15 @@ public class FileServiceImpl implements FileService {
 
         fileRepository.saveAll(fileEntitys);
 
+    }
+
+    private String getType(InputStream inputStream) throws Exception {
+        String detect = tika.detect(inputStream);
+        return Arrays.stream(GlobalConstants.FileType.values())
+                .filter(e -> detect.contains(e.getType()))
+                .findAny()
+                .orElse(GlobalConstants.FileType.NONE)
+                .getType();
     }
 
     public void getFile(String id, HttpServletResponse response) {
@@ -97,7 +115,7 @@ public class FileServiceImpl implements FileService {
 
     public List<FileEntity> getData(String dir) {
         String username = SecurityUtil.getCurrentUsername();
-        return fileRepository.findFileEntitysByCreateUserAndParent(username)
+        return fileRepository.findFileEntitysByCreateUserAndParent(username,dir)
                  .stream()
                  .filter(FileEntity::getIsDelete)
                  .collect(Collectors.toList());

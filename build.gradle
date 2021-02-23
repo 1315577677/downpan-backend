@@ -21,6 +21,7 @@ repositories {
 }
 
 dependencies {
+    compile 'org.apache.tika:tika-core:1.20'
     compile 'mysql:mysql-connector-java:8.0.15'
     compile 'commons-codec:commons-codec:1.4'
     compile 'io.minio:minio:7.0.2'

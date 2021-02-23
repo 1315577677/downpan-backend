@@ -12,7 +12,7 @@ import java.util.List;
  */
 @NoRepositoryBean
 public interface FileRepository extends CrudRepository<FileEntity,String> {
-    List<FileEntity> findFileEntitysByCreateUserAndParent(String username);
+    List<FileEntity> findFileEntitysByCreateUserAndParent(String s, String username);
 
-    FileEntity findFileEntityByMD5();
+    FileEntity findFileEntityByMD5(String md5);
 }

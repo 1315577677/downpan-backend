@@ -4,6 +4,7 @@ import indi.zx.downpan.common.response.Response;
 import indi.zx.downpan.service.impl.FileServiceImpl;
 import indi.zx.downpan.support.util.ResponseUtil;
 import net.minidev.json.JSONObject;
+import org.simpleframework.xml.core.Validate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -25,18 +26,19 @@ public class FileController {
         this.fileService = fileService;
     }
 
-    @PostMapping("/upload")
-    public void fileUpload(MultipartFile[] files,String parent) {
-        fileService.upload(files,parent);
+    @PostMapping("/upload/{parent}")
+    public void fileUpload(MultipartFile[] files, @PathVariable("parent") String parent) {
+        fileService.upload(files, parent);
     }
 
     @GetMapping("/getData")
     public Response getData(String dir) {
-        fileService.getData(dir);
+
         return ResponseUtil.success(
-                "\t[{\n" +
-                        "\"type\":\"image\",\"id\":\"444\",\"url\":\"http://127.0.0.1:8888/file/getFile/list.png\",\"ext\":\"\",\"isdir\":0,\"name\":\"123456\",\"createdTime\":\"2020:12:12 10:00:00\"\n" +
-                        "},{\"id\":\"123\",\"type\":\"video\",\"url\":\"http://127.0.0.1:8888/file/getFile/123.mp4\",\"ext\":\"\",\"name\":\"haha\",\"createdTime\":\"5123123\"}]  "
+                fileService.getData(dir)
+//                "\t[{\n" +
+//                        "\"type\":\"image\",\"id\":\"444\",\"url\":\"http://127.0.0.1:8888/file/getFile/list.png\",\"ext\":\"\",\"isdir\":0,\"name\":\"123456\",\"createdTime\":\"2020:12:12 10:00:00\"\n" +
+//                        "},{\"id\":\"123\",\"type\":\"video\",\"url\":\"http://127.0.0.1:8888/file/getFile/123.mp4\",\"ext\":\"\",\"name\":\"haha\",\"createdTime\":\"5123123\"}]  "
         );
     }
 
@@ -55,7 +57,7 @@ public class FileController {
     public Response renameFile(@RequestBody JSONObject json) {
         String id = json.getAsString("id");
         String name = json.getAsString("name");
-        fileService.update(id,name);
+        fileService.update(id, name);
         return ResponseUtil.success();
     }
 }

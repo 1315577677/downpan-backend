@@ -1,6 +1,7 @@
 package indi.zx.downpan.common.constants;
 
 import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.Getter;
 
 /**
@@ -32,5 +33,19 @@ public class GlobalConstants {
 
         int code;
         String msg;
+    }
+    @Getter
+    @AllArgsConstructor
+    public enum FileType{
+
+        NONE("none"),
+
+        IMAGE("image"),
+
+        VIDEO("video"),
+
+        TEXT("text");
+
+        String type;
     }
 }
