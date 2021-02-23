@@ -91,14 +91,14 @@ public class UserServiceImpl implements UserService {
         result.put("username", user.getUsername());
         result.put("capacity", user.getDiskCapacity());
         result.put("used", 1244501);
-        byte[] icon = user.getIcon();
-        if (icon != null) {
+//        byte[] icon = user.getIcon();
+//        if (icon != null) {
             try (InputStream is = new FileInputStream("D:\\Users\\Administrator\\Desktop\\QQ.png");
                  OutputStream os = response.getOutputStream()) {
                 IOUtils.copyLarge(is, os);
             } catch (IOException e) {
                 MessageUtil.parameter("头像获取失败");
-            }
+//            }
         }
         return result;
     }

@@ -26,12 +26,13 @@ public class FileController {
     }
 
     @PostMapping("/upload")
-    public void fileUpload(MultipartFile[] files) {
-        fileService.upload(files);
+    public void fileUpload(MultipartFile[] files,String parent) {
+        fileService.upload(files,parent);
     }
 
     @GetMapping("/getData")
-    public Response getData() {
+    public Response getData(String dir) {
+        fileService.getData(dir);
         return ResponseUtil.success(
                 "\t[{\n" +
                         "\"type\":\"image\",\"id\":\"444\",\"url\":\"http://127.0.0.1:8888/file/getFile/list.png\",\"ext\":\"\",\"isdir\":0,\"name\":\"123456\",\"createdTime\":\"2020:12:12 10:00:00\"\n" +

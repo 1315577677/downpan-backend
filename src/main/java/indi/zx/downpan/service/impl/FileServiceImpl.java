@@ -6,21 +6,12 @@ import indi.zx.downpan.service.FileService;
 import indi.zx.downpan.support.util.MessageUtil;
 import indi.zx.downpan.support.util.SecurityUtil;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.tomcat.util.http.fileupload.FileUtils;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.*;
-import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.FileInputStream;
@@ -42,7 +33,8 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
-    public void upload(MultipartFile[] files) {
+    public void upload(MultipartFile[] files, String parent) {
+        String username = SecurityUtil.getCurrentUsernameFromContext();
         List<FileEntity> fileEntitys = new LinkedList<>();
 
         for (MultipartFile file : files) {
@@ -50,12 +42,18 @@ public class FileServiceImpl implements FileService {
             try {
                 fileEntity.setMD5(DigestUtils.md5Hex(file.getInputStream()));
             } catch (IOException e) {
-                MessageUtil.parameter("md5提取失败");
+                continue;
             }
-            fileEntity.setFileName(file.getName());
+            FileEntity entity = fileRepository.findFileEntityByMD5();
+            if (entity!= null){
+
+            }
+            fileEntity.setFileName(file.getOriginalFilename());
             fileEntity.setIsDelete(false);
-            fileEntity.setRealPath(SecurityUtil.getCurrentUsernameFromContext() + "/" + fileEntity.getMD5());
-            fileEntity.setVirtualPath("");
+            fileEntity.setRealPath( username + "/" + fileEntity.getMD5());
+            fileEntity.setVirtualPath(parent+ "/"+ file.getOriginalFilename());
+            fileEntity.setIsDir(false);
+            fileEntity.setCreateUser(username);
             try {
 
                 file.transferTo(new File("D:\\work\\testFolder\\" + file.getOriginalFilename()));
@@ -95,5 +93,13 @@ public class FileServiceImpl implements FileService {
         FileEntity fileEntity = byId.get();
         fileEntity.setFileName(name);
         fileRepository.save(fileEntity);
+    }
+
+    public List<FileEntity> getData(String dir) {
+        String username = SecurityUtil.getCurrentUsername();
+        return fileRepository.findFileEntitysByCreateUserAndParent(username)
+                 .stream()
+                 .filter(FileEntity::getIsDelete)
+                 .collect(Collectors.toList());
     }
 }

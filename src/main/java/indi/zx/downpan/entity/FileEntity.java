@@ -26,4 +26,7 @@ public class FileEntity extends BaseEntity{
     private String realPath;
     private String realType;
     private Boolean isDelete;
+    private Boolean isDir;
+    private String type;
+    private String parent;
 }
