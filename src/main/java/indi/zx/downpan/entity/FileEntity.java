@@ -21,10 +21,10 @@ import javax.persistence.UniqueConstraint;
 public class FileEntity extends BaseEntity{
     private String name;
     private String MD5;
-    private Long size;
+    private Long size = 0L;
     private String url;
     private String type;
-    private Boolean isDelete;
-    private Boolean isDir;
+    private Boolean isDelete = false;
+    private Boolean isDir = false;
     private String parent;
 }

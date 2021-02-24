@@ -27,6 +27,8 @@ public class UserEntity extends BaseEntity{
 
     private Integer status;
 
+    private Long used =0L;
+
     private Long diskCapacity;
 
     @Lob

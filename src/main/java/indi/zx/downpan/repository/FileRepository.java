@@ -15,7 +15,7 @@ import java.util.List;
 public interface FileRepository extends CrudRepository<FileEntity,String> , JpaSpecificationExecutor<FileEntity> {
     List<FileEntity> findFileEntitysByCreateUserAndParent(String s, String username);
 
-    FileEntity findFileEntityByMD5(String md5);
+    List<FileEntity> findFileEntitysByMD5(String md5);
 
     List<FileEntity> findFileEntitysByCreateUser(String username);
 }

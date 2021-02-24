@@ -90,7 +90,7 @@ public class UserServiceImpl implements UserService {
         JSONObject result = new JSONObject();
         result.put("username", user.getUsername());
         result.put("capacity", user.getDiskCapacity());
-        result.put("used", 1244501);
+        result.put("used",user.getUsed());
         return result;
     }
 }

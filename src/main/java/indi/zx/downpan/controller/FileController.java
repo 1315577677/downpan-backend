@@ -27,7 +27,7 @@ public class FileController {
     }
 
     @PostMapping("/upload/{parent}")
-    public Response fileUpload(MultipartFile[] files, @PathVariable("parent") String parent) {
+    public Response fileUpload(MultipartFile files, @PathVariable("parent") String parent) {
         fileService.upload(files, parent.replace(".","/"));
         return ResponseUtil.success();
     }

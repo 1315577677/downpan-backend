@@ -3,7 +3,9 @@ package indi.zx.downpan.service.impl;
 import indi.zx.downpan.common.constants.GlobalConstants;
 import indi.zx.downpan.configure.Properties;
 import indi.zx.downpan.entity.FileEntity;
+import indi.zx.downpan.entity.UserEntity;
 import indi.zx.downpan.repository.FileRepository;
+import indi.zx.downpan.repository.UserRepository;
 import indi.zx.downpan.service.FileService;
 import indi.zx.downpan.support.util.MessageUtil;
 import indi.zx.downpan.support.util.SecurityUtil;
@@ -18,11 +20,15 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.persistence.criteria.Predicate;
 import javax.servlet.http.HttpServletResponse;
+import javax.transaction.Transactional;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 /**
@@ -33,42 +39,49 @@ import java.util.stream.Collectors;
 public class FileServiceImpl implements FileService {
 
     private final FileRepository fileRepository;
-    private  final Properties properties;
+    private final Properties properties;
     private final Tika tika = new Tika();
+    private final UserRepository userRepository;
+    private  Lock lock = new ReentrantLock();
     @Autowired
-    public FileServiceImpl(FileRepository fileRepository, Properties properties) {
+    public FileServiceImpl(FileRepository fileRepository, Properties properties, UserRepository userRepository) {
         this.fileRepository = fileRepository;
         this.properties = properties;
+        this.userRepository = userRepository;
     }
 
     @Override
-    public void upload(MultipartFile[] files, String parent) {
+    public void upload(MultipartFile files, String parent) {
         String username = SecurityUtil.getCurrentUsername();
-        List<FileEntity> fileEntitys = new LinkedList<>();
-        for (MultipartFile file : files) {
-            FileEntity fileEntity = new FileEntity();
-            try {
-                fileEntity.setType(getType(file.getInputStream()));
-                fileEntity.setMD5(DigestUtils.md5Hex(file.getInputStream()));
-            } catch (Exception e) {
-                continue;
-            }
-            FileEntity entity = fileRepository.findFileEntityByMD5(fileEntity.getMD5());
-            if (entity == null){
-                // 上传操作
-            }
-            fileEntity.setSize(file.getSize()/1000);
-            fileEntity.setName(file.getOriginalFilename());
-            fileEntity.setIsDelete(false);
-            fileEntity.setUrl( properties.getFileServerRootUrl()+fileEntity.getMD5());
-            fileEntity.setIsDir(false);
-            fileEntity.setParent(parent);
-            fileEntity.setCreateUser(username);
-            fileEntity.setUpdateUser(username);
-            fileEntitys.add(fileEntity);
+        FileEntity fileEntity = new FileEntity();
+        try {
+            lock.lock();
+            UserEntity user = userRepository.findUserEntityByUsername(username);
+            user.setUsed(user.getUsed() + files.getSize());
+            userRepository.save(user);
+        }finally {
+            lock.unlock();
         }
+        try {
+            fileEntity.setType(getType(files.getInputStream()));
+            fileEntity.setMD5(DigestUtils.md5Hex(files.getInputStream()));
+        } catch (Exception e) {
+            MessageUtil.parameter("上传失败:" + files.getOriginalFilename());
+        }
+        List<FileEntity> entity = fileRepository.findFileEntitysByMD5(fileEntity.getMD5());
+        if (entity.size() == 0) {
+            // 上传操作
+        }
+        fileEntity.setSize(files.getSize());
+        fileEntity.setName(files.getOriginalFilename());
+        fileEntity.setIsDelete(false);
+        fileEntity.setUrl(properties.getFileServerRootUrl() + fileEntity.getMD5());
+        fileEntity.setIsDir(false);
+        fileEntity.setParent(parent);
+        fileEntity.setCreateUser(username);
+        fileEntity.setUpdateUser(username);
+        fileRepository.save(fileEntity);
 
-        fileRepository.saveAll(fileEntitys);
 
     }
 
@@ -84,10 +97,10 @@ public class FileServiceImpl implements FileService {
     public void getFile(String id, HttpServletResponse response) {
         File file = new File("D:\\work\\testFolder\\" + id);
         response.setContentType(MediaType.APPLICATION_OCTET_STREAM_VALUE);
-        response.setHeader("Content-Disposition", "attachment; filename="+file.getName().replace(" ", "_"));
+        response.setHeader("Content-Disposition", "attachment; filename=" + file.getName().replace(" ", "_"));
         try {
             FileInputStream fis = new FileInputStream(file);
-            IOUtils.copyLarge(fis,response.getOutputStream());
+            IOUtils.copyLarge(fis, response.getOutputStream());
         } catch (IOException e) {
             MessageUtil.parameter("资源读取出错");
         }
@@ -97,21 +110,23 @@ public class FileServiceImpl implements FileService {
         List<String> iterator = Arrays.stream(ids.split(",")).collect(Collectors.toList());
         Iterable<FileEntity> allById = fileRepository.findAllById(iterator);
         List<FileEntity> result = new ArrayList<>();
-        allById.forEach(item ->{
-            if (item.getIsDir()){
-                String root = item.getParent() + "." + item.getName();
+        allById.forEach(item -> {
+            if (item.getIsDir()) {
+                String root = item.getParent() + "/" + item.getName();
                 String username = SecurityUtil.getCurrentUsername();
                 List<FileEntity> entities = fileRepository.findFileEntitysByCreateUser(username)
-                        .stream().filter(e ->e.getParent().contains(root))
+                        .stream().filter(e -> e.getParent().contains(root))
                         .collect(Collectors.toList());
                 entities.forEach(entity -> entity.setIsDelete(true));
                 result.addAll(entities);
-            }else {
-                item.setIsDelete(true);
-                result.add(item);
             }
+            item.setIsDelete(true);
+            result.add(item);
         });
         fileRepository.saveAll(result);
+        UserEntity user = userRepository.findUserEntityByUsername(SecurityUtil.getCurrentUsername());
+        user.setUsed(user.getUsed() - result.stream().mapToLong(FileEntity::getSize).sum());
+        userRepository.save(user);
     }
 
     public void update(String id, String name) {
@@ -121,23 +136,23 @@ public class FileServiceImpl implements FileService {
         fileRepository.save(fileEntity);
     }
 
-    public List<FileEntity> getData(String dir,String orderBy) {
+    public List<FileEntity> getData(String dir, String orderBy) {
         String username = SecurityUtil.getCurrentUsername();
         List<FileEntity> result = new LinkedList<>();
         List<FileEntity> collect = fileRepository.findFileEntitysByCreateUserAndParent(username, dir.replace(".", "/"))
                 .stream()
                 .filter(fileEntity -> !fileEntity.getIsDelete())
                 .collect(Collectors.toList());
-        if ("createdTime".equals(orderBy)){
-           result.addAll(collect.stream()
+        if ("createdTime".equals(orderBy)) {
+            result.addAll(collect.stream()
                     .filter(FileEntity::getIsDir)
                     .sorted(Comparator.comparing(FileEntity::getUpdateTime))
                     .collect(Collectors.toList()));
-           result.addAll(collect.stream()
+            result.addAll(collect.stream()
                     .filter(entity -> !entity.getIsDir())
                     .sorted(Comparator.comparing(FileEntity::getUpdateTime))
-                   .collect(Collectors.toList()));
-        }else{
+                    .collect(Collectors.toList()));
+        } else {
             result.addAll(collect.stream()
                     .filter(FileEntity::getIsDir)
                     .sorted(Comparator.comparing(FileEntity::getName))
@@ -163,15 +178,15 @@ public class FileServiceImpl implements FileService {
     }
 
     public List<FileEntity> findByName(String name) {
-       return fileRepository.findAll((Specification<FileEntity>) (root, query, criteriaBuilder) -> {
-            Predicate parkFullNamePredicate = criteriaBuilder.like(root.get("name").as(String.class), "%"+name+"%");
+        return fileRepository.findAll((Specification<FileEntity>) (root, query, criteriaBuilder) -> {
+            Predicate parkFullNamePredicate = criteriaBuilder.like(root.get("name").as(String.class), "%" + name + "%");
             query.where(criteriaBuilder.and(parkFullNamePredicate));
             query.orderBy(criteriaBuilder.asc(root.get("updateTime").as(Date.class)));
             return query.getRestriction();
         })
-               .stream()
-               .filter(entity -> !entity.getIsDir())
-               .filter(entity -> !entity.getIsDelete())
-               .collect(Collectors.toList());
+                .stream()
+                .filter(entity -> !entity.getIsDir())
+                .filter(entity -> !entity.getIsDelete())
+                .collect(Collectors.toList());
     }
 }
