@@ -6,7 +6,6 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     initialization-mode: always
   jpa:
-    show-sql: true
     hibernate:
       ddl-auto: update
     database: mysql
@@ -27,3 +26,7 @@ minio:
 jwt:
   expiration: 7200000
   token: Authorization
+downpan:
+  fileServerRootUrl: http://127.0.0.1/file/getFile/
+
+

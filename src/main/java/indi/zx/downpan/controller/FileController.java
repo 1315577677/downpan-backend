@@ -27,19 +27,14 @@ public class FileController {
     }
 
     @PostMapping("/upload/{parent}")
-    public void fileUpload(MultipartFile[] files, @PathVariable("parent") String parent) {
-        fileService.upload(files, parent);
+    public Response fileUpload(MultipartFile[] files, @PathVariable("parent") String parent) {
+        fileService.upload(files, parent.replace(".","/"));
+        return ResponseUtil.success();
     }
 
-    @GetMapping("/getData")
-    public Response getData(String dir) {
-
-        return ResponseUtil.success(
-                fileService.getData(dir)
-//                "\t[{\n" +
-//                        "\"type\":\"image\",\"id\":\"444\",\"url\":\"http://127.0.0.1:8888/file/getFile/list.png\",\"ext\":\"\",\"isdir\":0,\"name\":\"123456\",\"createdTime\":\"2020:12:12 10:00:00\"\n" +
-//                        "},{\"id\":\"123\",\"type\":\"video\",\"url\":\"http://127.0.0.1:8888/file/getFile/123.mp4\",\"ext\":\"\",\"name\":\"haha\",\"createdTime\":\"5123123\"}]  "
-        );
+    @GetMapping("/getData/{dir}/{orderBy}")
+    public Response getData(@PathVariable("dir") String dir, @PathVariable("orderBy") String orderBy) {
+        return ResponseUtil.success(fileService.getData(dir, orderBy));
     }
 
     @GetMapping("/getFile/{id}")
@@ -59,5 +54,15 @@ public class FileController {
         String name = json.getAsString("name");
         fileService.update(id, name);
         return ResponseUtil.success();
+    }
+
+    @GetMapping("/createDir/{parent}/{name}")
+    public Response createDir(@PathVariable("parent") String parent, @PathVariable("name") String name) {
+        fileService.createDir(parent.replace(".","/"), name);
+        return ResponseUtil.success();
+    }
+    @GetMapping("/search/{name}")
+    public Response searchFile(@PathVariable("name") String name) {
+        return ResponseUtil.success( fileService.findByName(name));
     }
 }

@@ -12,19 +12,18 @@ import javax.persistence.UniqueConstraint;
  */
 
 @Entity
-@Table(name="file")
+@Table(name = "file")
 @Setter
 @Getter
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
 public class FileEntity extends BaseEntity{
-    private String fileName;
+    private String name;
     private String MD5;
     private Long size;
-    private String virtualPath;
-    private String realPath;
-    private String realType;
+    private String url;
+    private String type;
     private Boolean isDelete;
     private Boolean isDir;
     private String parent;

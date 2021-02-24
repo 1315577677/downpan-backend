@@ -1,6 +1,7 @@
 package indi.zx.downpan.repository;
 
 import indi.zx.downpan.entity.FileEntity;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.NoRepositoryBean;
 
@@ -11,8 +12,10 @@ import java.util.List;
  * @since CreateAt 2021-02-20 16:59
  */
 @NoRepositoryBean
-public interface FileRepository extends CrudRepository<FileEntity,String> {
+public interface FileRepository extends CrudRepository<FileEntity,String> , JpaSpecificationExecutor<FileEntity> {
     List<FileEntity> findFileEntitysByCreateUserAndParent(String s, String username);
 
     FileEntity findFileEntityByMD5(String md5);
+
+    List<FileEntity> findFileEntitysByCreateUser(String username);
 }

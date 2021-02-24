@@ -37,6 +37,7 @@ public class GlobalConstants {
     @Getter
     @AllArgsConstructor
     public enum FileType{
+        DIR("dir"),
 
         NONE("none"),
 
