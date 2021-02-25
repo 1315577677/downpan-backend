@@ -3,6 +3,7 @@ package indi.zx.downpan.controller;
 import indi.zx.downpan.common.response.Response;
 import indi.zx.downpan.entity.UserEntity;
 import indi.zx.downpan.service.UserService;
+import indi.zx.downpan.service.impl.UserServiceImpl;
 import indi.zx.downpan.support.util.ResponseUtil;
 import net.minidev.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,11 +25,11 @@ import java.util.Map;
 @RequestMapping("/user")
 public class UserController {
 
-    private final UserService userService;
+    private final UserServiceImpl userService;
 
 
     @Autowired
-    public UserController(UserService userService) {
+    public UserController(UserServiceImpl userService) {
         this.userService = userService;
     }
 

@@ -65,4 +65,10 @@ public class FileController {
     public Response searchFile(@PathVariable("name") String name) {
         return ResponseUtil.success( fileService.findByName(name));
     }
+
+    @GetMapping("/getBackFile")
+    public Response getBackFile() {
+         fileService.getBackFile();
+        return ResponseUtil.success();
+    }
 }

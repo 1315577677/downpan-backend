@@ -2,8 +2,11 @@ package indi.zx.downpan.repository.jpa;
 
 import indi.zx.downpan.entity.FileEntity;
 import indi.zx.downpan.repository.FileRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import javax.transaction.Transactional;
 import java.util.List;
 
 /**

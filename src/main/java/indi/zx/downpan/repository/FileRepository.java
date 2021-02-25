@@ -2,6 +2,7 @@ package indi.zx.downpan.repository;
 
 import indi.zx.downpan.entity.FileEntity;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.NoRepositoryBean;
 

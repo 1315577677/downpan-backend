@@ -16,17 +16,15 @@ spring:
 server:
   port: 8888
 minio:
-  endpoint: 172.28.43.29
+  endpoint: 127.0.0.1
   port: 9000
-  accessKey: minio
-  secretKey: miniopassword
+  accessKey: minioadmin
+  secretKey: minioadmin
   secure: false
-  bucketName: "hope-bucket"
-  configDir: "/home/data/"
 jwt:
   expiration: 7200000
   token: Authorization
 downpan:
-  fileServerRootUrl: http://127.0.0.1/file/getFile/
+  fileServerRootUrl: http://192.168.0.103:8888/file/getFile/
 
 

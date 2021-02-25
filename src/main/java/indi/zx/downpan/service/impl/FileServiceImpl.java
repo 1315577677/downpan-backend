@@ -7,8 +7,10 @@ import indi.zx.downpan.entity.UserEntity;
 import indi.zx.downpan.repository.FileRepository;
 import indi.zx.downpan.repository.UserRepository;
 import indi.zx.downpan.service.FileService;
+import indi.zx.downpan.support.minio.MinIoService;
 import indi.zx.downpan.support.util.MessageUtil;
 import indi.zx.downpan.support.util.SecurityUtil;
+import io.minio.MinioClient;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.tika.Tika;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
@@ -20,13 +22,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.persistence.criteria.Predicate;
 import javax.servlet.http.HttpServletResponse;
-import javax.transaction.Transactional;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
@@ -43,11 +43,13 @@ public class FileServiceImpl implements FileService {
     private final Tika tika = new Tika();
     private final UserRepository userRepository;
     private  Lock lock = new ReentrantLock();
+    private final MinIoService minIoService;
     @Autowired
-    public FileServiceImpl(FileRepository fileRepository, Properties properties, UserRepository userRepository) {
+    public FileServiceImpl(FileRepository fileRepository, Properties properties, UserRepository userRepository, MinIoService minIoService) {
         this.fileRepository = fileRepository;
         this.properties = properties;
         this.userRepository = userRepository;
+        this.minIoService = minIoService;
     }
 
     @Override
@@ -65,12 +67,12 @@ public class FileServiceImpl implements FileService {
         try {
             fileEntity.setType(getType(files.getInputStream()));
             fileEntity.setMD5(DigestUtils.md5Hex(files.getInputStream()));
+            List<FileEntity> entity = fileRepository.findFileEntitysByMD5(fileEntity.getMD5());
+            if (entity.size() == 0) {
+                minIoService.uploadFile(username,fileEntity.getMD5(),files.getInputStream());
+            }
         } catch (Exception e) {
             MessageUtil.parameter("上传失败:" + files.getOriginalFilename());
-        }
-        List<FileEntity> entity = fileRepository.findFileEntitysByMD5(fileEntity.getMD5());
-        if (entity.size() == 0) {
-            // 上传操作
         }
         fileEntity.setSize(files.getSize());
         fileEntity.setName(files.getOriginalFilename());
@@ -94,15 +96,11 @@ public class FileServiceImpl implements FileService {
                 .getType();
     }
 
-    public void getFile(String id, HttpServletResponse response) {
-        File file = new File("D:\\work\\testFolder\\" + id);
-        response.setContentType(MediaType.APPLICATION_OCTET_STREAM_VALUE);
-        response.setHeader("Content-Disposition", "attachment; filename=" + file.getName().replace(" ", "_"));
+    public void getFile(String md5, HttpServletResponse response) {
         try {
-            FileInputStream fis = new FileInputStream(file);
-            IOUtils.copyLarge(fis, response.getOutputStream());
+            minIoService.downloadFile(md5,response.getOutputStream());
         } catch (IOException e) {
-            MessageUtil.parameter("资源读取出错");
+            MessageUtil.parameter(e.getMessage());
         }
     }
 
@@ -188,5 +186,8 @@ public class FileServiceImpl implements FileService {
                 .filter(entity -> !entity.getIsDir())
                 .filter(entity -> !entity.getIsDelete())
                 .collect(Collectors.toList());
+    }
+
+    public void getBackFile() {
     }
 }

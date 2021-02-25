@@ -34,11 +34,6 @@ public class MinioConfig {
    //("如果是true，则用的是https而不是http,默认值是true")
     private Boolean secure;
 
-   //("默认存储桶")
-    private String bucketName;
-
-   //("配置目录")
-    private String configDir;
 
     @Bean("minioClient")
     public MinioClient getMinioClient() throws InvalidEndpointException, InvalidPortException {
