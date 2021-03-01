@@ -42,7 +42,7 @@ public class FileServiceImpl implements FileService {
     private final Properties properties;
     private final Tika tika = new Tika();
     private final UserRepository userRepository;
-    private  Lock lock = new ReentrantLock();
+    private final Lock lock = new ReentrantLock();
     private final MinIoService minIoService;
     @Autowired
     public FileServiceImpl(FileRepository fileRepository, Properties properties, UserRepository userRepository, MinIoService minIoService) {
@@ -90,7 +90,7 @@ public class FileServiceImpl implements FileService {
     private String getType(InputStream inputStream) throws Exception {
         String detect = tika.detect(inputStream);
         return Arrays.stream(GlobalConstants.FileType.values())
-                .filter(e -> detect.contains(e.getType()))
+                .filter(e -> e.getType().equals(detect.split("/")[0]))
                 .findAny()
                 .orElse(GlobalConstants.FileType.NONE)
                 .getType();

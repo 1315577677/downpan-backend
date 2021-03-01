@@ -34,15 +34,18 @@ public class MinIoServiceImpl implements MinIoService {
         if (!minioClient.bucketExists(bucket)) {
             minioClient.makeBucket(bucket);
         }
-        ;
-        minioClient.putObject(bucket, fileName, inputStream, new PutObjectOptions(inputStream.available(), PutObjectOptions.MAX_PART_SIZE));
+        try {
+            minioClient.putObject(bucket, fileName, inputStream, new PutObjectOptions(inputStream.available(), PutObjectOptions.MAX_PART_SIZE));
+        } finally {
+            inputStream.close();
+        }
         return true;
     }
 
     @Override
-    public void downloadFile(String md5 , OutputStream os) {
-        try(InputStream is = minioClient.getObject(SecurityUtil.getCurrentUsername(), md5)) {
-            IOUtils.copyLarge(is,os);
+    public void downloadFile(String md5, OutputStream os) {
+        try (InputStream is = minioClient.getObject(SecurityUtil.getCurrentUsername(), md5)) {
+            IOUtils.copyLarge(is, os);
         } catch (Exception e) {
             MessageUtil.parameter("资源未找到");
         }

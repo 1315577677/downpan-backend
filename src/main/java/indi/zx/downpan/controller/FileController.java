@@ -28,7 +28,7 @@ public class FileController {
 
     @PostMapping("/upload/{parent}")
     public Response fileUpload(MultipartFile files, @PathVariable("parent") String parent) {
-        fileService.upload(files, parent.replace(".","/"));
+        fileService.upload(files, parent.replace(".", "/"));
         return ResponseUtil.success();
     }
 
@@ -58,12 +58,13 @@ public class FileController {
 
     @GetMapping("/createDir/{parent}/{name}")
     public Response createDir(@PathVariable("parent") String parent, @PathVariable("name") String name) {
-        fileService.createDir(parent.replace(".","/"), name);
+        fileService.createDir(parent.replace(".", "/"), name);
         return ResponseUtil.success();
     }
+
     @GetMapping("/search/{name}")
     public Response searchFile(@PathVariable("name") String name) {
-        return ResponseUtil.success( fileService.findByName(name));
+        return ResponseUtil.success(fileService.findByName(name));
     }
 
     @GetMapping("/getBackFile")
