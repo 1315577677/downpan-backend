@@ -57,7 +57,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 // 测试用资源，需要验证了的用户才能访问
                 .antMatchers("/user/login").permitAll()
                 .antMatchers("/user/register").permitAll()
-                .antMatchers("/file/getFile/*").permitAll()
+                .antMatchers("/file/getFile/**").permitAll()
                 // 其他都放行了
                 .anyRequest().authenticated()
                 .and()

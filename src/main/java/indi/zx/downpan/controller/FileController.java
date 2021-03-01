@@ -28,7 +28,7 @@ public class FileController {
 
     @PostMapping("/upload/{parent}")
     public Response fileUpload(MultipartFile files, @PathVariable("parent") String parent) {
-        fileService.upload(files, parent.replace(".","/"));
+        fileService.upload(files, parent.replace(".", "/"));
         return ResponseUtil.success();
     }
 
@@ -37,9 +37,9 @@ public class FileController {
         return ResponseUtil.success(fileService.getData(dir, orderBy));
     }
 
-    @GetMapping("/getFile/{id}")
-    public void getFile(@PathVariable("id") String id, HttpServletResponse response) {
-        fileService.getFile(id, response);
+    @GetMapping("/getFile/{username}/{id}")
+    public void getFile(@PathVariable("id") String id, @PathVariable("username") String username, HttpServletResponse response) {
+        fileService.getFile(id, username, response);
     }
 
     @PostMapping("/delete")
@@ -58,17 +58,18 @@ public class FileController {
 
     @GetMapping("/createDir/{parent}/{name}")
     public Response createDir(@PathVariable("parent") String parent, @PathVariable("name") String name) {
-        fileService.createDir(parent.replace(".","/"), name);
+        fileService.createDir(parent.replace(".", "/"), name);
         return ResponseUtil.success();
     }
+
     @GetMapping("/search/{name}")
     public Response searchFile(@PathVariable("name") String name) {
-        return ResponseUtil.success( fileService.findByName(name));
+        return ResponseUtil.success(fileService.findByName(name));
     }
 
     @GetMapping("/getBackFile")
     public Response getBackFile() {
-         fileService.getBackFile();
+        fileService.getBackFile();
         return ResponseUtil.success();
     }
 }

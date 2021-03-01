@@ -40,10 +40,11 @@ public class MinIoServiceImpl implements MinIoService {
     }
 
     @Override
-    public void downloadFile(String md5 , OutputStream os) {
-        try(InputStream is = minioClient.getObject(SecurityUtil.getCurrentUsername(), md5)) {
+    public void downloadFile(String md5 ,String bucket, OutputStream os) {
+        try(InputStream is = minioClient.getObject(bucket, md5)) {
             IOUtils.copyLarge(is,os);
         } catch (Exception e) {
+            e.printStackTrace();
             MessageUtil.parameter("资源未找到");
         }
     }

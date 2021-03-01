@@ -10,20 +10,15 @@ import indi.zx.downpan.service.FileService;
 import indi.zx.downpan.support.minio.MinIoService;
 import indi.zx.downpan.support.util.MessageUtil;
 import indi.zx.downpan.support.util.SecurityUtil;
-import io.minio.MinioClient;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.tika.Tika;
-import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.persistence.criteria.Predicate;
 import javax.servlet.http.HttpServletResponse;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
@@ -67,7 +62,11 @@ public class FileServiceImpl implements FileService {
         try {
             fileEntity.setType(getType(files.getInputStream()));
             fileEntity.setMD5(DigestUtils.md5Hex(files.getInputStream()));
-            List<FileEntity> entity = fileRepository.findFileEntitysByMD5(fileEntity.getMD5());
+            List<FileEntity> entity = fileRepository.findFileEntitysByMD5(fileEntity.getMD5())
+                    .stream()
+                    .filter(e -> !e.getIsDelete())
+                    .collect(Collectors.toList());
+
             if (entity.size() == 0) {
                 minIoService.uploadFile(username,fileEntity.getMD5(),files.getInputStream());
             }
@@ -77,7 +76,7 @@ public class FileServiceImpl implements FileService {
         fileEntity.setSize(files.getSize());
         fileEntity.setName(files.getOriginalFilename());
         fileEntity.setIsDelete(false);
-        fileEntity.setUrl(properties.getFileServerRootUrl() + fileEntity.getMD5());
+        fileEntity.setUrl(properties.getFileServerRootUrl() + username + "/" + fileEntity.getMD5());
         fileEntity.setIsDir(false);
         fileEntity.setParent(parent);
         fileEntity.setCreateUser(username);
@@ -96,9 +95,9 @@ public class FileServiceImpl implements FileService {
                 .getType();
     }
 
-    public void getFile(String md5, HttpServletResponse response) {
+    public void getFile(String id, String username, HttpServletResponse response) {
         try {
-            minIoService.downloadFile(md5,response.getOutputStream());
+            minIoService.downloadFile(id,username,response.getOutputStream());
         } catch (IOException e) {
             MessageUtil.parameter(e.getMessage());
         }
