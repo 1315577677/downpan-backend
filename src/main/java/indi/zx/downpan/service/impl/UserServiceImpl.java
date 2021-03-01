@@ -7,7 +7,6 @@ import indi.zx.downpan.support.util.CheckUtil;
 import indi.zx.downpan.support.util.MessageUtil;
 import indi.zx.downpan.support.util.SecurityUtil;
 import net.minidev.json.JSONObject;
-import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -15,9 +14,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-
 import javax.servlet.http.HttpServletResponse;
-import java.io.*;
 import java.util.Map;
 
 /**
@@ -33,7 +30,8 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
 
-    private final Long CAPACITY = 104857600L;
+    private final Long CAPACITY = 107374182400L;
+
     @Autowired
     public UserServiceImpl(@Qualifier("userDetailsServiceImpl") UserDetailsService userDetailsService, BCryptPasswordEncoder bCryptPasswordEncoder, UserRepository userRepository) {
         this.userDetailsService = userDetailsService;
@@ -90,7 +88,7 @@ public class UserServiceImpl implements UserService {
         JSONObject result = new JSONObject();
         result.put("username", user.getUsername());
         result.put("capacity", user.getDiskCapacity());
-        result.put("used",user.getUsed());
+        result.put("used", user.getUsed());
         return result;
     }
 }

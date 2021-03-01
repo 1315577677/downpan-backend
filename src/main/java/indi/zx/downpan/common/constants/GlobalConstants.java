@@ -45,7 +45,11 @@ public class GlobalConstants {
 
         VIDEO("video"),
 
-        TEXT("text");
+        TEXT("text"),
+
+        APPLICATION("application"),
+
+        AUDIO("audio");
 
         String type;
     }

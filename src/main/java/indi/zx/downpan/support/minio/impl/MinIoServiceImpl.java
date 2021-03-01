@@ -34,8 +34,11 @@ public class MinIoServiceImpl implements MinIoService {
         if (!minioClient.bucketExists(bucket)) {
             minioClient.makeBucket(bucket);
         }
-        ;
-        minioClient.putObject(bucket, fileName, inputStream, new PutObjectOptions(inputStream.available(), PutObjectOptions.MAX_PART_SIZE));
+        try {
+            minioClient.putObject(bucket, fileName, inputStream, new PutObjectOptions(inputStream.available(), PutObjectOptions.MAX_PART_SIZE));
+        } finally {
+            inputStream.close();
+        }
         return true;
     }
 
@@ -44,7 +47,6 @@ public class MinIoServiceImpl implements MinIoService {
         try(InputStream is = minioClient.getObject(bucket, md5)) {
             IOUtils.copyLarge(is,os);
         } catch (Exception e) {
-            e.printStackTrace();
             MessageUtil.parameter("资源未找到");
         }
     }
