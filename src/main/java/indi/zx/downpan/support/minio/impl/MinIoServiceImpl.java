@@ -1,5 +1,6 @@
 package indi.zx.downpan.support.minio.impl;
 
+import indi.zx.downpan.common.constants.GlobalConstants;
 import indi.zx.downpan.exception.InternalServerExecption;
 import indi.zx.downpan.support.minio.MinIoService;
 import indi.zx.downpan.support.util.MessageUtil;
@@ -43,11 +44,20 @@ public class MinIoServiceImpl implements MinIoService {
     }
 
     @Override
-    public void downloadFile(String md5 ,String bucket, OutputStream os) {
+    public void downLoadFile(String md5 ,String bucket, OutputStream os) {
         try(InputStream is = minioClient.getObject(bucket, md5)) {
             IOUtils.copyLarge(is,os);
         } catch (Exception e) {
             MessageUtil.parameter("资源未找到");
+        }
+    }
+
+    @Override
+    public InputStream downLoadFile(String name, String bucket) {
+        try{
+            return minioClient.getObject(bucket, name);
+        } catch (Exception e) {
+            throw new InternalServerExecption(GlobalConstants.Res.PARAMETER_ERROR.getCode(),"资源未找到");
         }
     }
 }

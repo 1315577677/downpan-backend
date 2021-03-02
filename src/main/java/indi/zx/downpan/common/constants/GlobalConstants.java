@@ -37,20 +37,21 @@ public class GlobalConstants {
     @Getter
     @AllArgsConstructor
     public enum FileType{
-        DIR("dir"),
+        DIR("dir/","dir"),
 
-        NONE("none"),
+        NONE("none/","none"),
 
-        IMAGE("image"),
+        IMAGE("image/","image"),
 
-        VIDEO("video"),
+        VIDEO("video/","video"),
 
-        TEXT("text"),
+        TEXT("text/","text"),
 
-        APPLICATION("application"),
+        ZIP("/zip","zip"),
 
-        AUDIO("audio");
+        AUDIO("audio/","audio");
 
         String type;
+        String viewType;
     }
 }

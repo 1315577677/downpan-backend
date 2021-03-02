@@ -2,10 +2,12 @@ package indi.zx.downpan.repository;
 
 import indi.zx.downpan.entity.FileEntity;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.NoRepositoryBean;
 
+import java.util.Base64;
 import java.util.List;
 
 /**
@@ -19,4 +21,10 @@ public interface FileRepository extends CrudRepository<FileEntity,String> , JpaS
     List<FileEntity> findFileEntitysByMD5(String md5);
 
     List<FileEntity> findFileEntitysByCreateUser(String username);
+
+    @Modifying
+    @Query(value = "update file set is_delete = false where create_user = ?1",nativeQuery = true)
+    void updateFileStatusByCreateUser(String createUser);
+
+    FileEntity findFileEntityByParentAndName(String parent, String name);
 }

@@ -15,5 +15,7 @@ public interface MinIoService {
 
     boolean uploadFile(String bucket, String fileName, InputStream inputStream) throws Exception;
 
-    void downloadFile(String fileName,String bucket, OutputStream os);
+    void downLoadFile(String fileName, String bucket, OutputStream os);
+
+    InputStream downLoadFile(String name,String bucket);
 }

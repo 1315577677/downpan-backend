@@ -19,12 +19,15 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.persistence.criteria.Predicate;
 import javax.servlet.http.HttpServletResponse;
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
+import java.util.zip.ZipInputStream;
 
 /**
  * @author xiang.zhang
@@ -68,7 +71,7 @@ public class FileServiceImpl implements FileService {
                     .collect(Collectors.toList());
 
             if (entity.size() == 0) {
-                minIoService.uploadFile(username,fileEntity.getMD5(),files.getInputStream());
+              //  minIoService.uploadFile(username,fileEntity.getMD5(),files.getInputStream());
             }
         } catch (Exception e) {
             MessageUtil.parameter("上传失败:" + files.getOriginalFilename());
@@ -89,15 +92,15 @@ public class FileServiceImpl implements FileService {
     private String getType(InputStream inputStream) throws Exception {
         String detect = tika.detect(inputStream);
         return Arrays.stream(GlobalConstants.FileType.values())
-                .filter(e -> e.getType().equals(detect.split("/")[0]))
+                .filter(e -> detect.contains(e.getType()))
                 .findAny()
                 .orElse(GlobalConstants.FileType.NONE)
-                .getType();
+                .getViewType();
     }
 
     public void getFile(String id, String username, HttpServletResponse response) {
         try {
-            minIoService.downloadFile(id,username,response.getOutputStream());
+            minIoService.downLoadFile(id,username,response.getOutputStream());
         } catch (IOException e) {
             MessageUtil.parameter(e.getMessage());
         }
@@ -188,5 +191,13 @@ public class FileServiceImpl implements FileService {
     }
 
     public void getBackFile() {
+        fileRepository.updateFileStatusByCreateUser(SecurityUtil.getCurrentUsername());
+    }
+
+    public void unzip(String parent, String name) {
+        FileEntity fileEntity = fileRepository.findFileEntityByParentAndName(parent, name);
+        String md5 = fileEntity.getMD5();
+        String username = SecurityUtil.getCurrentUsername();
+
     }
 }

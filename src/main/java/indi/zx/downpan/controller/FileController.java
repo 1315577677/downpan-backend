@@ -72,4 +72,10 @@ public class FileController {
         fileService.getBackFile();
         return ResponseUtil.success();
     }
+
+    @GetMapping("/unzip/{parent}/{name}")
+    public Response unzip(@PathVariable("parent") String parent, @PathVariable("name") String name) {
+        fileService.unzip(parent,name);
+        return ResponseUtil.success();
+    }
 }
