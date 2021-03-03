@@ -28,13 +28,13 @@ public class FileController {
 
     @PostMapping("/upload/{parent}")
     public Response fileUpload(MultipartFile files, @PathVariable("parent") String parent) {
-        fileService.upload(files, parent.replace(".", "/"));
+        fileService.upload(files, parent.replace("&","/"));
         return ResponseUtil.success();
     }
 
     @GetMapping("/getData/{dir}/{orderBy}")
     public Response getData(@PathVariable("dir") String dir, @PathVariable("orderBy") String orderBy) {
-        return ResponseUtil.success(fileService.getData(dir, orderBy));
+        return ResponseUtil.success(fileService.getData(dir.replace("&","/"), orderBy));
     }
 
     @GetMapping("/getFile/{username}/{id}")
@@ -58,7 +58,7 @@ public class FileController {
 
     @GetMapping("/createDir/{parent}/{name}")
     public Response createDir(@PathVariable("parent") String parent, @PathVariable("name") String name) {
-        fileService.createDir(parent.replace(".", "/"), name);
+        fileService.createDir(parent.replace("&","/"), name);
         return ResponseUtil.success();
     }
 
@@ -75,7 +75,7 @@ public class FileController {
 
     @GetMapping("/unzip/{parent}/{name}")
     public Response unzip(@PathVariable("parent") String parent, @PathVariable("name") String name) {
-        fileService.unzip(parent,name);
+        fileService.unzip(parent.replace("&","/"),name);
         return ResponseUtil.success();
     }
 }

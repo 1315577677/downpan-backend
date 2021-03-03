@@ -26,5 +26,5 @@ public interface FileRepository extends CrudRepository<FileEntity,String> , JpaS
     @Query(value = "update file set is_delete = false where create_user = ?1",nativeQuery = true)
     void updateFileStatusByCreateUser(String createUser);
 
-    FileEntity findFileEntityByParentAndName(String parent, String name);
+    List<FileEntity> findFileEntityByParentAndName(String parent, String name);
 }

@@ -7,10 +7,13 @@ import indi.zx.downpan.entity.UserEntity;
 import indi.zx.downpan.repository.FileRepository;
 import indi.zx.downpan.repository.UserRepository;
 import indi.zx.downpan.service.FileService;
+import indi.zx.downpan.support.Compressor.Archiver;
+import indi.zx.downpan.support.Compressor.MyZip;
 import indi.zx.downpan.support.minio.MinIoService;
 import indi.zx.downpan.support.util.MessageUtil;
 import indi.zx.downpan.support.util.SecurityUtil;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.compress.utils.IOUtils;
 import org.apache.tika.Tika;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
@@ -19,15 +22,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.persistence.criteria.Predicate;
 import javax.servlet.http.HttpServletResponse;
-import java.io.BufferedInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.Charset;
+import java.io.*;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
-import java.util.zip.ZipInputStream;
 
 /**
  * @author xiang.zhang
@@ -42,6 +41,7 @@ public class FileServiceImpl implements FileService {
     private final UserRepository userRepository;
     private final Lock lock = new ReentrantLock();
     private final MinIoService minIoService;
+
     @Autowired
     public FileServiceImpl(FileRepository fileRepository, Properties properties, UserRepository userRepository, MinIoService minIoService) {
         this.fileRepository = fileRepository;
@@ -59,7 +59,7 @@ public class FileServiceImpl implements FileService {
             UserEntity user = userRepository.findUserEntityByUsername(username);
             user.setUsed(user.getUsed() + files.getSize());
             userRepository.save(user);
-        }finally {
+        } finally {
             lock.unlock();
         }
         try {
@@ -71,7 +71,7 @@ public class FileServiceImpl implements FileService {
                     .collect(Collectors.toList());
 
             if (entity.size() == 0) {
-              //  minIoService.uploadFile(username,fileEntity.getMD5(),files.getInputStream());
+                minIoService.uploadFile(username, fileEntity.getMD5(), files.getInputStream());
             }
         } catch (Exception e) {
             MessageUtil.parameter("上传失败:" + files.getOriginalFilename());
@@ -100,7 +100,7 @@ public class FileServiceImpl implements FileService {
 
     public void getFile(String id, String username, HttpServletResponse response) {
         try {
-            minIoService.downLoadFile(id,username,response.getOutputStream());
+            minIoService.downLoadFile(id, username, response.getOutputStream());
         } catch (IOException e) {
             MessageUtil.parameter(e.getMessage());
         }
@@ -139,7 +139,7 @@ public class FileServiceImpl implements FileService {
     public List<FileEntity> getData(String dir, String orderBy) {
         String username = SecurityUtil.getCurrentUsername();
         List<FileEntity> result = new LinkedList<>();
-        List<FileEntity> collect = fileRepository.findFileEntitysByCreateUserAndParent(username, dir.replace(".", "/"))
+        List<FileEntity> collect = fileRepository.findFileEntitysByCreateUserAndParent(username, dir)
                 .stream()
                 .filter(fileEntity -> !fileEntity.getIsDelete())
                 .collect(Collectors.toList());
@@ -169,7 +169,7 @@ public class FileServiceImpl implements FileService {
     public void createDir(String parent, String name) {
         FileEntity fileEntity = new FileEntity();
         fileEntity.setIsDir(true);
-        fileEntity.setType(GlobalConstants.FileType.DIR.getType());
+        fileEntity.setType(GlobalConstants.FileType.DIR.getViewType());
         fileEntity.setName(name);
         fileEntity.setCreateUser(SecurityUtil.getCurrentUsername());
         fileEntity.setIsDelete(false);
@@ -195,9 +195,61 @@ public class FileServiceImpl implements FileService {
     }
 
     public void unzip(String parent, String name) {
-        FileEntity fileEntity = fileRepository.findFileEntityByParentAndName(parent, name);
+        FileEntity fileEntity = fileRepository.findFileEntityByParentAndName(parent, name)
+                .stream()
+                .filter(e -> !e.getIsDelete())
+                .findAny()
+                .orElse(new FileEntity());
         String md5 = fileEntity.getMD5();
         String username = SecurityUtil.getCurrentUsername();
-
+        try {
+            Archiver archiver = new MyZip();
+            String destPath = System.getProperties().getProperty("user.home") + File.separator;
+            String fileName = fileEntity.getName();
+            String substring = fileName.substring(0, fileName.lastIndexOf("."));
+            IOUtils.copy(minIoService.downLoadFile(md5, username), new FileOutputStream(destPath + fileName));
+            archiver.doUnArchiver(new File(destPath + fileName), destPath, null);
+            List<FileEntity> fileEntities = new ArrayList<>();
+            uploadAndSaveInfo(destPath, destPath, parent, new File(destPath + substring), fileEntities);
+            FileEntity file = new FileEntity();
+            file.setType(GlobalConstants.FileType.DIR.getViewType());
+            file.setIsDir(true);
+            file.setParent(parent);
+            file.setName(substring);
+            file.setCreateUser(SecurityUtil.getCurrentUsername());
+            fileEntities.add(file);
+            fileRepository.saveAll(fileEntities);
+        } catch (Exception e) {
+            e.printStackTrace();
+            MessageUtil.parameter("解压失败:" + e.getMessage());
+        }
     }
+
+    private void uploadAndSaveInfo(String root, String roote, String parent, File file, List<FileEntity> fileEntities) throws Exception {
+        File[] list = file.listFiles();
+        String username = SecurityUtil.getCurrentUsername();
+        for (File item : list) {
+            FileEntity fileEntity = new FileEntity();
+            if (item.isDirectory()) {
+                roote = roote + item.getParent().substring(file.getParent().indexOf(root) + root.length() + 1);
+                uploadAndSaveInfo(root, roote, parent, item, fileEntities);
+                fileEntity.setIsDir(true);
+                fileEntity.setType(GlobalConstants.FileType.DIR.getViewType());
+            } else {
+                fileEntity.setIsDir(false);
+                try (FileInputStream fileInputStream = new FileInputStream(item)) {
+                    fileEntity.setType(getType(fileInputStream));
+                    fileEntity.setMD5(DigestUtils.md5Hex(fileInputStream));
+                    fileEntity.setSize((long) fileInputStream.available());
+                }
+            }
+            String p =  parent + "/" + item.getParent().substring(item.getParent().indexOf(root) + root.length()).replace("\\","/");
+            fileEntity.setParent(p);
+            fileEntity.setName(item.getName());
+            fileEntity.setUpdateUser(username);
+            fileEntity.setCreateUser(username);
+            fileEntities.add(fileEntity);
+        }
+    }
+
 }
