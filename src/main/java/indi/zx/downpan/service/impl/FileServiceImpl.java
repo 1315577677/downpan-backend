@@ -13,7 +13,6 @@ import indi.zx.downpan.support.minio.MinIoService;
 import indi.zx.downpan.support.util.MessageUtil;
 import indi.zx.downpan.support.util.SecurityUtil;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.compress.utils.IOUtils;
 import org.apache.tika.Tika;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
@@ -22,7 +21,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.persistence.criteria.Predicate;
 import javax.servlet.http.HttpServletResponse;
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -65,12 +67,8 @@ public class FileServiceImpl implements FileService {
         try {
             fileEntity.setType(getType(files.getInputStream()));
             fileEntity.setMD5(DigestUtils.md5Hex(files.getInputStream()));
-            List<FileEntity> entity = fileRepository.findFileEntitysByMD5(fileEntity.getMD5())
-                    .stream()
-                    .filter(e -> !e.getIsDelete())
-                    .collect(Collectors.toList());
 
-            if (entity.size() == 0) {
+            if (isRepetitive(fileEntity.getMD5())) {
                 minIoService.uploadFile(username, fileEntity.getMD5(), files.getInputStream());
             }
         } catch (Exception e) {
@@ -100,6 +98,10 @@ public class FileServiceImpl implements FileService {
 
     public void getFile(String id, String username, HttpServletResponse response) {
         try {
+            FileEntity fileEntity = fileRepository.findFileEntitysByMD5(id).stream().findAny().get();
+            if (GlobalConstants.FileType.TEXT.getViewType().equals(fileEntity.getType())) {
+                response.setCharacterEncoding("UTF-8");
+            }
             minIoService.downLoadFile(id, username, response.getOutputStream());
         } catch (IOException e) {
             MessageUtil.parameter(e.getMessage());
@@ -207,12 +209,15 @@ public class FileServiceImpl implements FileService {
             String destPath = System.getProperties().getProperty("user.home") + File.separator;
             String fileName = fileEntity.getName();
             String substring = fileName.substring(0, fileName.lastIndexOf("."));
-            IOUtils.copy(minIoService.downLoadFile(md5, username), new FileOutputStream(destPath + fileName));
-            archiver.doUnArchiver(new File(destPath + fileName), destPath, null);
+            archiver.doUnArchiver(minIoService.downLoadFile(md5, username), destPath + substring);
             List<FileEntity> fileEntities = new ArrayList<>();
-            uploadAndSaveInfo(destPath, destPath, parent, new File(destPath + substring), fileEntities);
+            if (fileRepository.findFileEntityByParentAndName(parent, substring).stream().anyMatch(e -> !e.getIsDelete())) {
+                MessageUtil.parameter("请不要重复解压！");
+            }
+            uploadAndSaveInfo(destPath, parent, new File(destPath + substring), fileEntities);
             FileEntity file = new FileEntity();
             file.setType(GlobalConstants.FileType.DIR.getViewType());
+            file.setId(UUID.randomUUID().toString());
             file.setIsDir(true);
             file.setParent(parent);
             file.setName(substring);
@@ -221,29 +226,34 @@ public class FileServiceImpl implements FileService {
             fileRepository.saveAll(fileEntities);
         } catch (Exception e) {
             e.printStackTrace();
-            MessageUtil.parameter("解压失败:" + e.getMessage());
+            MessageUtil.parameter("解压失败：" + e.getMessage());
         }
     }
 
-    private void uploadAndSaveInfo(String root, String roote, String parent, File file, List<FileEntity> fileEntities) throws Exception {
+    private void uploadAndSaveInfo(String root, String parent, File file, List<FileEntity> fileEntities) throws Exception {
         File[] list = file.listFiles();
         String username = SecurityUtil.getCurrentUsername();
         for (File item : list) {
             FileEntity fileEntity = new FileEntity();
+            fileEntity.setId(UUID.randomUUID().toString());
             if (item.isDirectory()) {
-                roote = roote + item.getParent().substring(file.getParent().indexOf(root) + root.length() + 1);
-                uploadAndSaveInfo(root, roote, parent, item, fileEntities);
+                uploadAndSaveInfo(root, parent, item, fileEntities);
                 fileEntity.setIsDir(true);
                 fileEntity.setType(GlobalConstants.FileType.DIR.getViewType());
             } else {
                 fileEntity.setIsDir(false);
                 try (FileInputStream fileInputStream = new FileInputStream(item)) {
                     fileEntity.setType(getType(fileInputStream));
-                    fileEntity.setMD5(DigestUtils.md5Hex(fileInputStream));
+                    String md5Hex = DigestUtils.md5Hex(fileInputStream);
+                    fileEntity.setMD5(md5Hex);
                     fileEntity.setSize((long) fileInputStream.available());
+                    if (isRepetitive(fileEntity.getMD5())) {
+                        minIoService.uploadFile(username, md5Hex, fileInputStream);
+                    }
+                    fileEntity.setUrl(properties.getFileServerRootUrl() + username + "/" + md5Hex);
                 }
             }
-            String p =  parent + "/" + item.getParent().substring(item.getParent().indexOf(root) + root.length()).replace("\\","/");
+            String p = parent + "/" + item.getParent().substring(item.getParent().indexOf(root) + root.length()).replace("\\", "/");
             fileEntity.setParent(p);
             fileEntity.setName(item.getName());
             fileEntity.setUpdateUser(username);
@@ -252,4 +262,8 @@ public class FileServiceImpl implements FileService {
         }
     }
 
+    private boolean isRepetitive(String md5) {
+        List<FileEntity> entity = fileRepository.findFileEntitysByMD5(md5);
+        return entity.size() == 0;
+    }
 }

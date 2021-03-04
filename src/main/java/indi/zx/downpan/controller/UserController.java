@@ -50,4 +50,9 @@ public class UserController {
         JSONObject result = userService.getUserInfo(response);
         return ResponseUtil.success(result);
     }
+
+    @GetMapping("/logout")
+    public Response logout() {
+        return ResponseUtil.success();
+    }
 }

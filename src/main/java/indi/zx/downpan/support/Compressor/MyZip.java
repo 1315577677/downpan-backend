@@ -68,11 +68,9 @@ public final class MyZip extends Archiver {
 	}
 
 	@Override
-	public final void doUnArchiver(File srcfile, String destpath,
-			String password) throws IOException {
+	public final void doUnArchiver(InputStream is,String destpath) throws IOException {
 		byte[] buf = new byte[1024];
-		FileInputStream fis = new FileInputStream(srcfile);
-		BufferedInputStream bis = new BufferedInputStream(fis);
+		BufferedInputStream bis = new BufferedInputStream(is);
 		ZipInputStream zis = new ZipInputStream(bis);
 		ZipEntry zn = null;
 		while ((zn = zis.getNextEntry()) != null) {

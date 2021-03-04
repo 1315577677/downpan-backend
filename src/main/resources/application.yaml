@@ -18,8 +18,8 @@ server:
 minio:
   endpoint: 127.0.0.1
   port: 9000
-  accessKey: minioadmin
-  secretKey: minioadmin
+  accessKey: AKIAIOSFODNN7EXAMPLE
+  secretKey: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   secure: false
 jwt:
   expiration: 7200000
