@@ -14,6 +14,8 @@ import indi.zx.downpan.support.util.MessageUtil;
 import indi.zx.downpan.support.util.SecurityUtil;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.tika.Tika;
+import org.apache.tomcat.util.http.fileupload.FileUtils;
+import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -21,10 +23,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.persistence.criteria.Predicate;
 import javax.servlet.http.HttpServletResponse;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -67,7 +67,6 @@ public class FileServiceImpl implements FileService {
         try {
             fileEntity.setType(getType(files.getInputStream()));
             fileEntity.setMD5(DigestUtils.md5Hex(files.getInputStream()));
-
             if (isRepetitive(fileEntity.getMD5())) {
                 minIoService.uploadFile(username, fileEntity.getMD5(), files.getInputStream());
             }
@@ -214,6 +213,7 @@ public class FileServiceImpl implements FileService {
             if (fileRepository.findFileEntityByParentAndName(parent, substring).stream().anyMatch(e -> !e.getIsDelete())) {
                 MessageUtil.parameter("请不要重复解压！");
             }
+            tryUnziup(new File(destPath + substring));
             uploadAndSaveInfo(destPath, parent, new File(destPath + substring), fileEntities);
             FileEntity file = new FileEntity();
             file.setType(GlobalConstants.FileType.DIR.getViewType());
@@ -230,6 +230,37 @@ public class FileServiceImpl implements FileService {
         }
     }
 
+    private void tryUnziup(File file) {
+        if (!file.exists()) {
+            MessageUtil.parameter("资源丢失");
+        }
+        getlist(file);
+    }
+
+    public long getlist(File f) {
+        long size = 0;
+        File[] flist = f.listFiles();
+        assert flist != null;
+        size = flist.length;
+        for (File file : flist) {
+            if (file.isDirectory()) {
+                size = size + getlist(file);
+                if (size >= 2500L) {
+                    MessageUtil.parameter("文件数量过多，不支持在线解压！");
+                }
+            }
+        }
+        return size;
+    }
+
+
+    private void dirSize(File file, int size) {
+        if (file.isDirectory()) {
+            size += 1;
+
+        }
+    }
+
     private void uploadAndSaveInfo(String root, String parent, File file, List<FileEntity> fileEntities) throws Exception {
         File[] list = file.listFiles();
         String username = SecurityUtil.getCurrentUsername();
@@ -243,11 +274,15 @@ public class FileServiceImpl implements FileService {
             } else {
                 fileEntity.setIsDir(false);
                 try (FileInputStream fileInputStream = new FileInputStream(item)) {
-                    fileEntity.setType(getType(fileInputStream));
-                    String md5Hex = DigestUtils.md5Hex(fileInputStream);
-                    fileEntity.setMD5(md5Hex);
                     fileEntity.setSize((long) fileInputStream.available());
+                    reRead(fileInputStream, item.getPath());
+                    fileEntity.setType(getType(fileInputStream));
+                    reRead(fileInputStream, item.getPath());
+                    String md5Hex = DigestUtils.md5Hex(fileInputStream);
+                    reRead(fileInputStream, item.getPath());
+                    fileEntity.setMD5(md5Hex);
                     if (isRepetitive(fileEntity.getMD5())) {
+                        reRead(fileInputStream, item.getPath());
                         minIoService.uploadFile(username, md5Hex, fileInputStream);
                     }
                     fileEntity.setUrl(properties.getFileServerRootUrl() + username + "/" + md5Hex);
@@ -260,6 +295,13 @@ public class FileServiceImpl implements FileService {
             fileEntity.setCreateUser(username);
             fileEntities.add(fileEntity);
         }
+    }
+
+    private void reRead(InputStream inputStream, String path) throws Exception {
+        Class in = inputStream.getClass();
+        Method openo = in.getDeclaredMethod("open0", String.class);
+        openo.setAccessible(true);
+        openo.invoke(inputStream, path);
     }
 
     private boolean isRepetitive(String md5) {
