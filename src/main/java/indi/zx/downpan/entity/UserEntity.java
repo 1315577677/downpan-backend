@@ -31,6 +31,8 @@ public class UserEntity extends BaseEntity{
 
     private Long diskCapacity;
 
+    private String name;
+
     @Lob
     @Basic(fetch = FetchType.LAZY)
     @Column(columnDefinition = "MEDIUMBLOB")

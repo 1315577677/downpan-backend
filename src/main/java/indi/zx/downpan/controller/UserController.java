@@ -1,19 +1,14 @@
 package indi.zx.downpan.controller;
 
+import com.alibaba.fastjson.JSONObject;
 import indi.zx.downpan.common.response.Response;
 import indi.zx.downpan.entity.UserEntity;
-import indi.zx.downpan.service.UserService;
 import indi.zx.downpan.service.impl.UserServiceImpl;
 import indi.zx.downpan.support.util.ResponseUtil;
-import net.minidev.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.Map;
 
@@ -53,6 +48,23 @@ public class UserController {
 
     @GetMapping("/logout")
     public Response logout() {
+        return ResponseUtil.success();
+    }
+
+    @PostMapping("/addFriend/{username}")
+    public Response addFriend(@PathVariable("username") String username) {
+        userService.addFriend(username);
+        return ResponseUtil.success();
+    }
+
+    @GetMapping("/getFriends")
+    public Response getFriends() {
+        return ResponseUtil.success(userService.getFriends());
+    }
+
+    @PostMapping("/delete")
+    public Response deleteFriends(@RequestBody JSONObject json) {
+        userService.deleteFriends(json.getString("ids"));
         return ResponseUtil.success();
     }
 }

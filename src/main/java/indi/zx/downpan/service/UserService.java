@@ -1,7 +1,7 @@
 package indi.zx.downpan.service;
 
+import com.alibaba.fastjson.JSONObject;
 import indi.zx.downpan.entity.UserEntity;
-import net.minidev.json.JSONObject;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;

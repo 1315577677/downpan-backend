@@ -1,12 +1,15 @@
 package indi.zx.downpan.service.impl;
 
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.TypeReference;
+import indi.zx.downpan.common.constants.GlobalConstants;
 import indi.zx.downpan.entity.UserEntity;
 import indi.zx.downpan.repository.UserRepository;
 import indi.zx.downpan.service.UserService;
 import indi.zx.downpan.support.util.CheckUtil;
 import indi.zx.downpan.support.util.MessageUtil;
 import indi.zx.downpan.support.util.SecurityUtil;
-import net.minidev.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -15,7 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
-import java.util.Map;
+import java.util.*;
 
 /**
  * @author xiang.zhang
@@ -62,7 +65,7 @@ public class UserServiceImpl implements UserService {
         String password = map.get("password");
         String repassword = map.get("rePassword");
         String username = map.get("username");
-
+        user.setName(randomName());
         user.setPassword(bCryptPasswordEncoder.encode(password));
         user.setDiskCapacity(CAPACITY);
         user.setUsername(username);
@@ -81,6 +84,12 @@ public class UserServiceImpl implements UserService {
         return save;
     }
 
+    private String randomName() {
+        String[] adj  = GlobalConstants.ADJ;
+        String[] n = GlobalConstants.N;
+        return  adj[(int) (Math.random()*20)] + n[(int) (Math.random()*20)];
+    }
+
     @Override
     public JSONObject getUserInfo(HttpServletResponse response) {
         String currentUsername = SecurityUtil.getCurrentUsername();
@@ -89,6 +98,75 @@ public class UserServiceImpl implements UserService {
         result.put("username", user.getUsername());
         result.put("capacity", user.getDiskCapacity());
         result.put("used", user.getUsed());
+        result.put("name",user.getName());
         return result;
+    }
+
+    public void addFriend(String username) {
+        UserEntity firend = userRepository.findUserEntityByUsername(username);
+
+        List<UserEntity> userEntities = new ArrayList<>();
+        if (firend == null){
+            MessageUtil.parameter("未找到该用户！");
+        }
+        if (username.equals(SecurityUtil.getCurrentUsername())){
+            MessageUtil.parameter("不能添加自己为好友");
+        }
+
+        UserEntity user = userRepository.findUserEntityByUsername(SecurityUtil.getCurrentUsername());
+        JSONArray jsonArray = (JSONArray)JSONArray.parse(user.getFriends());
+        jsonArray = jsonArray == null ? new JSONArray() : jsonArray;
+        jsonArray.forEach(e ->{
+            if (e.equals(firend.getId())){
+                MessageUtil.parameter("该用户已在你的好友列表中");
+            }
+        });
+        jsonArray.add(firend.getId());
+        user.setFriends(jsonArray.toJSONString());
+        JSONArray jsonArray1 = (JSONArray)JSONArray.parse(firend.getFriends());
+        jsonArray1 = jsonArray1 == null ? new JSONArray() : jsonArray1;
+        if(jsonArray.stream().noneMatch(e-> e.equals(user.getId()))) {
+            jsonArray1.add(user.getId());
+            firend.setFriends(jsonArray1.toJSONString());
+            userEntities.add(firend);
+        }
+        userEntities.add(user);
+        userRepository.saveAll(userEntities);
+    }
+
+    public List<UserEntity> getFriends() {
+        UserEntity userEntity = userRepository.findUserEntityByUsername(SecurityUtil.getCurrentUsername());
+        if (userEntity.getFriends() == null){
+            return null;
+        }
+        List<UserEntity>  entities = new LinkedList<>();
+        List<String> strings = JSONArray.parseArray(userEntity.getFriends(), String.class);
+        for (String username: strings) {
+            Optional<UserEntity> optional = userRepository.findById(username);
+            optional.ifPresent(entities::add);
+        }
+         return entities;
+    }
+
+    public void deleteFriends(String ids) {
+        String[] id = ids.split(",");
+        Arrays.stream(id).forEach(e->{
+            UserEntity user = userRepository.findUserEntityByUsername(SecurityUtil.getCurrentUsername());
+            Optional<UserEntity> byId = userRepository.findById(e);
+            JSONArray jsonArray = JSONArray.parseArray(user.getFriends());
+            jsonArray.remove(e);
+            user.setFriends(jsonArray.toJSONString());
+            userRepository.save(user);
+            UserEntity friend = byId.get();
+            JSONArray jsonArray1 = JSONArray.parseArray(friend.getFriends());
+            jsonArray1.remove(user.getId());
+            friend.setFriends(jsonArray1.toJSONString());
+            userRepository.save(friend);
+        });
+
+    }
+
+    private void deleteFormFriend(String friendId, String id){
+
     }
 }
