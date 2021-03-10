@@ -19,4 +19,6 @@ public interface UserService {
     UserEntity save(Map<String,String> user);
 
     JSONObject getUserInfo(HttpServletResponse response);
+
+    void getUserIcon(HttpServletResponse response,String username);
 }

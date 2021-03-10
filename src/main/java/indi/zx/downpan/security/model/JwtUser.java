@@ -22,6 +22,7 @@ public class JwtUser implements UserDetails {
     private String password;
     private Long capacity;
     private Long used;
+    private String imgUrl;
     private String name;
 
 
@@ -35,6 +36,7 @@ public class JwtUser implements UserDetails {
         password = user.getPassword();
         capacity = user.getDiskCapacity();
         name = user.getName();
+        imgUrl = user.getImgUrl();
         used = 0L;
     }
 

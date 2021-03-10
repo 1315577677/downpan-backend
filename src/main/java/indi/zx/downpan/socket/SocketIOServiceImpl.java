@@ -1,8 +1,7 @@
 package indi.zx.downpan.socket;
 
-import com.corundumstudio.socketio.AckRequest;
-import com.corundumstudio.socketio.SocketIOClient;
-import com.corundumstudio.socketio.SocketIOServer;
+import com.alibaba.fastjson.JSONObject;
+import com.corundumstudio.socketio.*;
 import com.corundumstudio.socketio.annotation.OnConnect;
 import com.corundumstudio.socketio.annotation.OnDisconnect;
 import com.corundumstudio.socketio.annotation.OnEvent;
@@ -20,23 +19,28 @@ public class SocketIOServiceImpl {
     /**
      * 存放已连接的客户端
      */
-    private static Map<String, SocketIOClient> clientMap = new ConcurrentHashMap<>();
+    private static Map<String, SocketIOClient> roomChannel = new ConcurrentHashMap<>();
+    private static Map<String, SocketIOClient> listChannel = new ConcurrentHashMap<>();
 
-
-    @OnConnect
-    public void connect(SocketIOClient client){
-        UUID sessionId = client.getSessionId();
-        clientMap.put(sessionId.toString(),client);
-    }
-
-    @OnDisconnect
-    public void onDisconnect(SocketIOClient client){
-        UUID sessionId = client.getSessionId();
-        clientMap.remove(sessionId.toString());
-    }
 
     @OnEvent("handleMsg")
-    public void handleMsg(SocketIOClient client, AckRequest request, Object data ){
-        System.out.println(data);
+    public void handleMsg(SocketIOClient client, JSONObject data,String uid,String fid ){
+        client.sendEvent("dealMsg", new VoidAckCallback() {
+            @Override
+            protected void onSuccess() {
+
+            }
+        },data,uid,1);
+    }
+
+    @OnEvent("login")
+    public void login(SocketIOClient client,String uid,Integer channel){
+      if (channel == 0){
+          roomChannel.remove(uid);
+          listChannel.put(uid,client);
+      }else {
+          listChannel.remove(uid);
+          roomChannel.put(uid,client);
+      }
     }
 }

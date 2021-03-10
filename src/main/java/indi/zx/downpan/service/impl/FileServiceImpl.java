@@ -76,7 +76,7 @@ public class FileServiceImpl implements FileService {
         fileEntity.setSize(files.getSize());
         fileEntity.setName(files.getOriginalFilename());
         fileEntity.setIsDelete(false);
-        fileEntity.setUrl(properties.getFileServerRootUrl() + username + "/" + fileEntity.getMD5());
+        fileEntity.setUrl(properties.getFileServerRootUrl() + "/file/getFile/" + username + "/" + fileEntity.getMD5());
         fileEntity.setIsDir(false);
         fileEntity.setParent(parent);
         fileEntity.setCreateUser(username);
@@ -285,7 +285,7 @@ public class FileServiceImpl implements FileService {
                         reRead(fileInputStream, item.getPath());
                         minIoService.uploadFile(username, md5Hex, fileInputStream);
                     }
-                    fileEntity.setUrl(properties.getFileServerRootUrl() + username + "/" + md5Hex);
+                    fileEntity.setUrl(properties.getFileServerRootUrl() + "/file/getFile/" + username + "/" + md5Hex);
                 }
             }
             String p = parent + "/" + item.getParent().substring(item.getParent().indexOf(root) + root.length()).replace("\\", "/");

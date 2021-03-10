@@ -21,6 +21,8 @@ public class UserEntity extends BaseEntity{
     @Column(unique = true)
     private String username;
 
+    private String imgUrl;
+
     private String password;
 
     private String email;

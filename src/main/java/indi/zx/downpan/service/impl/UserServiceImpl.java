@@ -2,14 +2,15 @@ package indi.zx.downpan.service.impl;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import com.alibaba.fastjson.TypeReference;
 import indi.zx.downpan.common.constants.GlobalConstants;
+import indi.zx.downpan.configure.Properties;
 import indi.zx.downpan.entity.UserEntity;
 import indi.zx.downpan.repository.UserRepository;
 import indi.zx.downpan.service.UserService;
 import indi.zx.downpan.support.util.CheckUtil;
 import indi.zx.downpan.support.util.MessageUtil;
 import indi.zx.downpan.support.util.SecurityUtil;
+import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -18,6 +19,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.*;
 
 /**
@@ -33,13 +38,16 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
 
+    private final Properties properties;
+
     private final Long CAPACITY = 107374182400L;
 
     @Autowired
-    public UserServiceImpl(@Qualifier("userDetailsServiceImpl") UserDetailsService userDetailsService, BCryptPasswordEncoder bCryptPasswordEncoder, UserRepository userRepository) {
+    public UserServiceImpl(@Qualifier("userDetailsServiceImpl") UserDetailsService userDetailsService, BCryptPasswordEncoder bCryptPasswordEncoder, UserRepository userRepository, Properties properties) {
         this.userDetailsService = userDetailsService;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
         this.userRepository = userRepository;
+        this.properties = properties;
     }
 
     @Override
@@ -67,6 +75,15 @@ public class UserServiceImpl implements UserService {
         String username = map.get("username");
         user.setName(randomName());
         user.setPassword(bCryptPasswordEncoder.encode(password));
+        InputStream resourceAsStream = UserEntity.class.getClassLoader().getResourceAsStream("14.jpg");
+        try {
+            byte[] bytes = new byte[resourceAsStream.available()];
+            resourceAsStream.read(bytes);
+            user.setIcon(bytes);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        user.setImgUrl(properties.getFileServerRootUrl() + "/user/getIcon/" + username);
         user.setDiskCapacity(CAPACITY);
         user.setUsername(username);
         UserEntity save = null;
@@ -85,9 +102,9 @@ public class UserServiceImpl implements UserService {
     }
 
     private String randomName() {
-        String[] adj  = GlobalConstants.ADJ;
+        String[] adj = GlobalConstants.ADJ;
         String[] n = GlobalConstants.N;
-        return  adj[(int) (Math.random()*20)] + n[(int) (Math.random()*20)];
+        return adj[(int) (Math.random() * 20)] + n[(int) (Math.random() * 20)];
     }
 
     @Override
@@ -98,34 +115,46 @@ public class UserServiceImpl implements UserService {
         result.put("username", user.getUsername());
         result.put("capacity", user.getDiskCapacity());
         result.put("used", user.getUsed());
-        result.put("name",user.getName());
+        result.put("name", user.getName());
         return result;
+    }
+
+    @Override
+    public void getUserIcon(HttpServletResponse response,String username) {
+        UserEntity userEntityByUsername = userRepository.findUserEntityByUsername(username);
+        try (InputStream bs = new ByteArrayInputStream(userEntityByUsername.getIcon());
+             OutputStream os = response.getOutputStream();
+        ) {
+            IOUtils.copyLarge(bs, os);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void addFriend(String username) {
         UserEntity firend = userRepository.findUserEntityByUsername(username);
 
         List<UserEntity> userEntities = new ArrayList<>();
-        if (firend == null){
+        if (firend == null) {
             MessageUtil.parameter("未找到该用户！");
         }
-        if (username.equals(SecurityUtil.getCurrentUsername())){
+        if (username.equals(SecurityUtil.getCurrentUsername())) {
             MessageUtil.parameter("不能添加自己为好友");
         }
 
         UserEntity user = userRepository.findUserEntityByUsername(SecurityUtil.getCurrentUsername());
-        JSONArray jsonArray = (JSONArray)JSONArray.parse(user.getFriends());
+        JSONArray jsonArray = (JSONArray) JSONArray.parse(user.getFriends());
         jsonArray = jsonArray == null ? new JSONArray() : jsonArray;
-        jsonArray.forEach(e ->{
-            if (e.equals(firend.getId())){
+        jsonArray.forEach(e -> {
+            if (e.equals(firend.getId())) {
                 MessageUtil.parameter("该用户已在你的好友列表中");
             }
         });
         jsonArray.add(firend.getId());
         user.setFriends(jsonArray.toJSONString());
-        JSONArray jsonArray1 = (JSONArray)JSONArray.parse(firend.getFriends());
+        JSONArray jsonArray1 = (JSONArray) JSONArray.parse(firend.getFriends());
         jsonArray1 = jsonArray1 == null ? new JSONArray() : jsonArray1;
-        if(jsonArray.stream().noneMatch(e-> e.equals(user.getId()))) {
+        if (jsonArray.stream().noneMatch(e -> e.equals(user.getId()))) {
             jsonArray1.add(user.getId());
             firend.setFriends(jsonArray1.toJSONString());
             userEntities.add(firend);
@@ -136,21 +165,21 @@ public class UserServiceImpl implements UserService {
 
     public List<UserEntity> getFriends() {
         UserEntity userEntity = userRepository.findUserEntityByUsername(SecurityUtil.getCurrentUsername());
-        if (userEntity.getFriends() == null){
+        if (userEntity.getFriends() == null) {
             return null;
         }
-        List<UserEntity>  entities = new LinkedList<>();
+        List<UserEntity> entities = new LinkedList<>();
         List<String> strings = JSONArray.parseArray(userEntity.getFriends(), String.class);
-        for (String username: strings) {
+        for (String username : strings) {
             Optional<UserEntity> optional = userRepository.findById(username);
             optional.ifPresent(entities::add);
         }
-         return entities;
+        return entities;
     }
 
     public void deleteFriends(String ids) {
         String[] id = ids.split(",");
-        Arrays.stream(id).forEach(e->{
+        Arrays.stream(id).forEach(e -> {
             UserEntity user = userRepository.findUserEntityByUsername(SecurityUtil.getCurrentUsername());
             Optional<UserEntity> byId = userRepository.findById(e);
             JSONArray jsonArray = JSONArray.parseArray(user.getFriends());
@@ -166,7 +195,7 @@ public class UserServiceImpl implements UserService {
 
     }
 
-    private void deleteFormFriend(String friendId, String id){
+    private void deleteFormFriend(String friendId, String id) {
 
     }
 }
