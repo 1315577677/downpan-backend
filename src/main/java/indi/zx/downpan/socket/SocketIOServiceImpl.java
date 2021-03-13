@@ -2,20 +2,17 @@ package indi.zx.downpan.socket;
 
 import com.alibaba.fastjson.JSONObject;
 import com.corundumstudio.socketio.*;
-import com.corundumstudio.socketio.annotation.OnConnect;
-import com.corundumstudio.socketio.annotation.OnDisconnect;
 import com.corundumstudio.socketio.annotation.OnEvent;
+import indi.zx.downpan.entity.ChatInfo;
+import indi.zx.downpan.service.ChatInfoService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
 
 @Slf4j
 @Service
@@ -26,62 +23,68 @@ public class SocketIOServiceImpl {
      */
     private static Map<String, SocketIOClient> roomChannel = new ConcurrentHashMap<>();
     private static Map<String, SocketIOClient> listChannel = new ConcurrentHashMap<>();
-    private static Map<String,ChetInfo> chetInfos =  new ConcurrentHashMap<>();
+
+    private final ChatInfoService chatInfoService;
+
+    public SocketIOServiceImpl(ChatInfoService chatInfoService) {
+        this.chatInfoService = chatInfoService;
+    }
 
     @OnEvent("handleMsg")
-    public void handleMsg(SocketIOClient client, JSONObject data,String uid,String fid ){
+    public void handleMsg(SocketIOClient client, JSONObject data, String uid, String fid) {
         SocketIOClient friendClient = roomChannel.get(fid) == null ? listChannel.get(fid) : roomChannel.get(fid);
-        ChetInfo chetInfo = JSONObject.toJavaObject(data, ChetInfo.class);
-        chetInfo.setUid(uid);
-        chetInfo.setFromId(uid);
-        if (friendClient == null){
-            chetInfos.put(fid,chetInfo);
-        }else {
+        ChatInfo chatInfo = JSONObject.toJavaObject(data, ChatInfo.class);
+        chatInfo.setUid(uid);
+        chatInfo.setFromId(uid);
+        chatInfo.setFid(fid);
+        chatInfoService.save(chatInfo);
+        if (friendClient == null) {
+
+        } else {
             friendClient.sendEvent("dealMsg", new VoidAckCallback() {
                 @Override
                 protected void onSuccess() {
-
+                    chatInfoService.save(chatInfo);
                 }
 
                 @Override
                 public void onTimeout() {
                     super.onTimeout();
-                    ChetInfo chetInfo = JSONObject.toJavaObject(data, ChetInfo.class);
-                    chetInfo.setUid(uid);
-                    chetInfos.put(fid,chetInfo);
+                    chatInfoService.save(chatInfo);
                 }
-            },chetInfo,uid,1);
+            }, chatInfo, uid, 1);
         }
     }
 
     @OnEvent("login")
-    public void login(SocketIOClient client,String uid,Integer channel){
-      if (channel == 0){
-          roomChannel.remove(uid);
-          listChannel.put(uid,client);
-      }else {
-          listChannel.remove(uid);
-          roomChannel.put(uid,client);
-      }
+    public void login(SocketIOClient client, String uid, Integer channel) {
+        if (channel == 0) {
+            roomChannel.remove(uid);
+            listChannel.put(uid, client);
+        } else {
+            listChannel.remove(uid);
+            roomChannel.put(uid, client);
+        }
     }
 
     @PostConstruct
-    private void schedule(){
-        Executors.newSingleThreadScheduledExecutor().schedule(()->{
-            chetInfos.forEach((fid, value) -> {
-                SocketIOClient friendClient = roomChannel.get(fid) == null ? listChannel.get(fid) : roomChannel.get(fid);
-                friendClient.sendEvent("dealMsg", new VoidAckCallback() {
-                    @Override
-                    protected void onSuccess() {
-
-                    }
-
-                    @Override
-                    public void onTimeout() {
-                        chetInfos.put(fid,value);
-                    }
-                },value,value.getUid(),1);
-            });
-        }, 1, TimeUnit.SECONDS);
+    private void schedule() {
+//        Executors.newSingleThreadScheduledExecutor().schedule(() -> {
+//            chatInfos.forEach((fid, value) -> {
+//                SocketIOClient friendClient = roomChannel.get(fid) == null ? listChannel.get(fid) : roomChannel.get(fid);
+//                friendClient.sendEvent("dealMsg", new VoidAckCallback() {
+//                    @Override
+//                    protected void onSuccess() {
+//
+//                    }
+//
+//                    @Override
+//                    public void onTimeout() {
+//                        chatInfos.put(fid, value);
+//                    }
+//                }, value, value.getUid(), 1);
+//            });
+//        }, 1, TimeUnit.SECONDS);
+//    }
     }
 }

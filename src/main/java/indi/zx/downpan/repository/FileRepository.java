@@ -20,6 +20,7 @@ public interface FileRepository extends CrudRepository<FileEntity,String> , JpaS
 
     List<FileEntity> findFileEntitysByMD5(String md5);
 
+
     List<FileEntity> findFileEntitysByCreateUser(String username);
 
     @Modifying
